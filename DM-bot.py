@@ -28,7 +28,8 @@ def get_data(name, attribute):
     sheet1_data = wsheet.get_all_records()
     data = pd.DataFrame(sheet1_data)
     data.columns = data.columns.str.lower()
-    return data[data['name'].str.lower()==name.lower()][attribute.lower()][0]
+    mask = data['name'].str.lower()==name.lower()
+    return data[mask][attribute.lower()].values[0]
 
 @client.event
 async def on_message(message):
