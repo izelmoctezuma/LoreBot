@@ -15,7 +15,7 @@ BOT_TOKEN = "NTkyMTkyNDU5NTc2OTY3MTY4.XQ7xYg.LM4irLYwS6oNdLLeyhgIx6Zyw74"
 
 client = discord.Client()   
 
-def get_data(name, attribute):
+def get_db():
     # Google Sheet access
     scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
     google_key = '/Users/paolamoctezuma/PythonDev/DMBot/api-keys.json'
@@ -23,66 +23,34 @@ def get_data(name, attribute):
     client = gspread.authorize(creds)
     sheet = client.open('DMBot Database')
     wsheet = sheet.worksheet('Characters')
-    
     # extract all the values - this returns a dictionary
     sheet1_data = wsheet.get_all_records()
     data = pd.DataFrame(sheet1_data)
+    return(data)
+
+
+def get_attribute(name, attribute):
+    data = get_db()  
     data.columns = data.columns.str.lower()
-    
     # mask out the row we need
     mask = data['name'].str.lower()==name.lower()
-    
     # return the requested attribute from the masked row
     return data[mask][attribute.lower()].values[0]
 
 
 def get_count(column):
-    # Google Sheet access
-    scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-    google_key = '/Users/paolamoctezuma/PythonDev/DMBot/api-keys.json'
-    creds = ServiceAccountCredentials.from_json_keyfile_name(google_key, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open('DMBot Database')
-    wsheet = sheet.worksheet('Characters')
-    
-    # extract all the values - this returns a dictionary
-    sheet1_data = wsheet.get_all_records()
-    data = pd.DataFrame(sheet1_data)
+    data = get_db()
     data.columns = data.columns.str.lower()
-    
     # output the count of each unique value in the specified column
     return data[column].value_counts().to_string(header=True, length=False, dtype=False, name=False, max_rows=None).replace('    ',': ')
 
 def get_total():
-    # Google Sheet access
-    scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-    google_key = '/Users/paolamoctezuma/PythonDev/DMBot/api-keys.json'
-    creds = ServiceAccountCredentials.from_json_keyfile_name(google_key, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open('DMBot Database')
-    wsheet = sheet.worksheet('Characters')
-    
-    # extract all the values - this returns a dictionary
-    sheet1_data = wsheet.get_all_records()
-    data = pd.DataFrame(sheet1_data)
-    data.columns = data.columns.str.lower()
-    
+    data = get_db()
     return str(len(data.index))
 
 
 def get_row(name):
-    # Google Sheet access
-    scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-    google_key = '/Users/paolamoctezuma/PythonDev/DMBot/api-keys.json'
-    creds = ServiceAccountCredentials.from_json_keyfile_name(google_key, scope)
-    client = gspread.authorize(creds)
-    sheet = client.open('DMBot Database')
-    wsheet = sheet.worksheet('Characters')
-    
-    # extract all the values - this returns a dictionary
-    sheet1_data = wsheet.get_all_records()
-    data = pd.DataFrame(sheet1_data)
-    
+    data = get_db()
     # isolate the desired row, convert it to a dict of type records to remove the index
     # from the value fields, then "unwrap" the dict from records format by extracting it
     row_dict = data[data['Name'].str.lower()==name.lower()].to_dict(orient='records')[0]
@@ -106,7 +74,7 @@ async def on_message(message):
     # look up an attribute value in a specific row on the Google sheet
     if message.content.startswith('!lookup'):
         args = message.content.split()
-        msg = get_data(args[1], args[2])
+        msg = get_attribute(args[1], args[2])
         await message.channel.send(args[1] + '\'s ' + args[2] + ' is: ' + msg)
     # return a count of each unique value in a specified column of the Google sheet
     if message.content.startswith('!count'):
