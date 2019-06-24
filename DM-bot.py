@@ -28,15 +28,14 @@ def get_db():
     data = pd.DataFrame(sheet1_data)
     return(data)
 
-
 def get_attribute(name, attribute):
     data = get_db()  
     data.columns = data.columns.str.lower()
     # mask out the row we need
     mask = data['name'].str.lower()==name.lower()
     # return the requested attribute from the masked row
-    return data[mask][attribute.lower()].values[0]
-
+    att = str(data[mask][attribute.lower()].values[0])
+    return att
 
 def get_count(column):
     data = get_db()
@@ -48,7 +47,6 @@ def get_total():
     data = get_db()
     return str(len(data.index))
 
-
 def get_row(name):
     data = get_db()
     # isolate the desired row, convert it to a dict of type records to remove the index
@@ -56,46 +54,137 @@ def get_row(name):
     row_dict = data[data['Name'].str.lower()==name.lower()].to_dict(orient='records')[0]
     return str("\n".join("**{}:** {}".format(k, v) for k, v in row_dict.items()))
 
+def get_age(name, test_year):
+    birth_year = int(get_attribute(name, 'birthyear'))
+    test_year = int(test_year)
+    if test_year >= birth_year:
+        age = test_year - birth_year
+        if age != 1:
+            return ('In ' + str(test_year) + ', ' + name.capitalize() + ' would be ' + str(age) + ' years old.')
+        else:
+            return ('In ' + str(test_year) + ', ' + name.capitalize() + ' would be ' + str(age) + ' year old.')
+    else:
+        age = birth_year - test_year
+        if age != 1:
+            return (str(test_year) + ' was ' + str(age) + ' years before ' + name.capitalize() + ' was born.')
+        else:
+            return (str(test_year) + ' was ' + str(age) + ' year before ' + name.capitalize() + ' was born.')
+
+def get_year(name, age):
+    birth_year = int(get_attribute(name, 'birthyear'))
+    age = int(age)
+    return str(birth_year + age)
+
+def get_age_gap(name1, name2):
+    birth1 = int(get_attribute(name1, 'birthyear'))
+    birth2 = int(get_attribute(name2, 'birthyear'))
+    gap = birth1 - birth2
+    if gap > 0:
+        return str(name1).capitalize() + ' is ' + str(gap) + ' years younger than ' + str(name2).capitalize() + '.'
+    elif gap < 0:
+        return str(name1).capitalize() + ' is ' + str(abs(gap)) + ' years older than ' + str(name2).capitalize() + '.'
+    else:
+        return str(name1).capitalize() + ' and ' + str(name2).capitalize() + ' are the same age.'
+
+def get_age_when(name1, name2, age2):
+    birth1 = int(get_attribute(name1, 'birthyear'))
+    birth2 = int(get_attribute(name2, 'birthyear'))
+    gap = birth1 - birth2
+    age1 = int(age2) - gap
+    return age1
+
+#def factorial(n):
+#    if n == 0:
+#        return 1
+#    else:
+#        return n * factorial(n-1)
 
 @client.event
 async def on_message(message):
     # we do not want the bot to reply to itself
     if message.author == client.user:
         return
+    
     # say hi
     if message.content.startswith('!hello'):
         msg = 'Hello, {0.author.mention}!'.format(message)
         await message.channel.send(msg)
+        
     # copy what the user says
-    if message.content.startswith('!say'):
+    if message.content.startswith('!say '):
         arg_pos = message.content.find(' ')
         msg = 'Okay, I\'m saying ' + message.content[arg_pos + 1:]
         await message.channel.send(msg)
+        
     # look up an attribute value in a specific row on the Google sheet
-    if message.content.startswith('!lookup'):
+    if message.content.startswith('!lookup '):
         args = message.content.split()
-        msg = get_attribute(args[1], args[2])
-        await message.channel.send(args[1] + '\'s ' + args[2] + ' is: ' + msg)
+        try:
+            msg = args[1].capitalize() + '\'s ' + args[2] + ' is: ' + get_attribute(args[1], args[2])
+        except:
+            msg = 'That lookup is invalid, try again. Available attributes are:\n`' + str("`".join("{}` ".format(v) for v in get_db().columns.values.tolist()))
+        finally:
+            await message.channel.send(msg)
+
     # return a count of each unique value in a specified column of the Google sheet
-    if message.content.startswith('!count'):
+    if message.content.startswith('!count '):
         args = message.content.split()
         forbidden = ['name', 'pic', 'birthday', 'height']
-        if args[1].lower() not in forbidden :
+        if args[1].lower() not in forbidden:
             msg = get_count(args[1])
             await message.channel.send('Here is the ' + args[1] + ' count:\n' + msg)
         else:
             await message.channel.send('Sorry, you can\'t count by ' + args[1] + 's. Try another attribute instead.')
+
     # returns the total number of entries in the Google sheet
     if message.content.startswith('!total'):
         msg = get_total()
         await message.channel.send('The total character count is: ' + msg)
+
     # returns an entire row from the Google sheet, located via Name
-    if message.content.startswith('!bio'):
+    if message.content.startswith('!bio '):
         args = message.content.split()
         msg = get_row(args[1])
-        await message.channel.send(args[1] + '\'s Bio: \n' + msg)
-            
-        
+        await message.channel.send(args[1].capitalize() + '\'s Bio: \n' + msg)
+
+    # compare a character's birth year to the given year
+    if message.content.startswith('!agecalc '):
+        args = message.content.split()
+        msg = get_age(args[1], args[2])
+        await message.channel.send(msg)
+
+    # calculate the year from a character's age
+    if message.content.startswith('!yearcalc '):
+        args = message.content.split()
+        year = get_year(args[1], args[2])
+        await message.channel.send(args[1].capitalize() + ' would be ' + args[2] + ' in the year ' + year + '.')
+
+    # compare two characters' birth years
+    if message.content.startswith('!agegap '):
+        args = message.content.split()
+        try:
+            msg = get_age_gap(args[1], args[2])
+        except:
+            msg = 'There was a problem looking up one of the characters, or that character doesn\'t have a valid birth year.'
+        finally:
+            await message.channel.send(msg)
+
+    # calculate a character's age in relation to another character's age
+    if message.content.startswith('!agewhen '):
+        args = message.content.split()
+        try:
+            msg = args[1] + ' would be ' + str(get_age_when(args[1], args[3], args[4])) + ' when ' + args[3] + ' is ' + args[4] + '.'
+        except:
+            msg = 'There was a problem looking up one of the characters, or that character doesn\'t have a valid birth year.'
+        finally:
+            await message.channel.send(msg)
+
+    # list commands when a user asks for help
+    if message.content.startswith('!help'):
+        cmd_list = ['!hello', '!say (text)', '!lookup (name) (attribute)', '!count (attribute)', '!total', '!bio (name)', '!agecalc (name) (year)', '!yearcalc (name) (age)', '!agegap (name1) (name2)', '!agewhen (name1) when (name2) (age)']
+        await message.channel.send('These are the commands I can process:\n`' + str("`".join("{}`\n".format(v) for v in cmd_list)))
+
+
 @client.event
 async def on_ready():
     print('Logged in as')
