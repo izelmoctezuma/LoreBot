@@ -127,7 +127,6 @@ def are_related(name1, name2, data):
     checked = []
     related = False
     while len(unchecked) != 0:
-        print('checking ' + str(unchecked[0]))
         if check_family(unchecked[0], name2, data) == True:
             related = True
             break
@@ -141,8 +140,6 @@ def are_related(name1, name2, data):
             unchecked = [x for x in unchecked if x]
             unchecked = list(set(unchecked))
     return(related)
-
-    
 
 #def factorial(n):
 #    if n == 0:
@@ -247,10 +244,10 @@ async def on_message(message):
     if message.content.startswith('!related'):
         args = message.content.split()
         try:
-            if are_related(args[1], args[2], get_db()):
-                msg = args[1] + ' and ' + args[2] + ' are related.'
+            if are_related(args[1].capitalize(), args[2].capitalize(), get_db()):
+                msg = args[1].capitalize() + ' and ' + args[2].capitalize() + ' are related.'
             else:
-                msg = args[1] + ' and ' + args[2] + ' are not related.'
+                msg = args[1].capitalize() + ' and ' + args[2].capitalize() + ' are not related.'
         except:
             msg = 'There was a problem looking up one of the characters. Check your spelling and try again.'
         finally:
