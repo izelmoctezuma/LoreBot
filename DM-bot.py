@@ -141,6 +141,32 @@ def are_related(name1, name2, data):
             unchecked = list(set(unchecked))
     return(related)
 
+unchecked = []
+checked = []
+def check_relation(name1, name2, data):
+    global unchecked
+    global checked
+    global family_line
+    print('Checking ' + name1)
+    checked.append(name1)
+    for n in get_family(name1, data):
+        if n not in checked:
+            unchecked.append(n)
+    if name1 in unchecked:
+        unchecked.remove(name1)
+    #clear unchecked of any empty strings and remove duplicates
+    unchecked = [x for x in unchecked if x]
+    unchecked = list(set(unchecked))
+    if check_family(name1, name2, data):
+        family_line.append(name1)
+        print('true')
+        return True
+    elif len(unchecked) == 0:
+        print('false')
+        return False
+    else:
+        check_relation(unchecked[0], name2, data)
+
 #def factorial(n):
 #    if n == 0:
 #        return 1
