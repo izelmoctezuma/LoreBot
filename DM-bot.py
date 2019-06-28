@@ -9,6 +9,8 @@ import discord
 import gspread
 import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
+import requests
+from bs4 import BeautifulSoup
 
 
 BOT_TOKEN = "NTkyMTkyNDU5NTc2OTY3MTY4.XQ7xYg.LM4irLYwS6oNdLLeyhgIx6Zyw74"
@@ -146,7 +148,6 @@ checked = []
 def check_relation(name1, name2, data):
     global unchecked
     global checked
-    global family_line
     print('Checking ' + name1)
     checked.append(name1)
     for n in get_family(name1, data):
@@ -158,7 +159,6 @@ def check_relation(name1, name2, data):
     unchecked = [x for x in unchecked if x]
     unchecked = list(set(unchecked))
     if check_family(name1, name2, data):
-        family_line.append(name1)
         print('true')
         return True
     elif len(unchecked) == 0:
@@ -172,6 +172,34 @@ def check_relation(name1, name2, data):
 #        return 1
 #    else:
 #        return n * factorial(n-1)
+        
+############################## THREAD SCRAPER ##############################
+
+def scrape_page(url, posts):
+    # get webpage and parse it
+    page = requests.get(url)
+    soup = BeautifulSoup(page.text, 'html.parser')
+    # scrape thread title and posts on page
+    for msg in list(soup.find_all('div', class_='message')):
+        posts.update(Thread = posts.get('Thread') + [str(soup.find('h1').string)])
+        posts.update(Post = posts.get('Post') + [str(msg)[21:-6]])
+    # extract author names and timestamps from <h3> tags
+    for info in list(soup.find_all('h3')):
+        posts.update(Author = posts.get('Author') + [str(info)[38:str(info).find('<abbr') - 4]])
+        posts.update(Date = posts.get('Date') + [str(info.find('abbr')['title'])])
+    # scrape next page if there is one
+    if soup.find('li', class_='next').a.has_attr('href'):
+        nextpage = 'http://dark-myths.proboards.com' + soup.find('li', class_='next').a['href']
+        scrape_page(nextpage, posts)
+        return(posts)
+    else:
+        # print(str(len(posts.get('Post'))) + ' posts found. End of thread.')
+        return(posts)
+        
+# consideration: are thread titles unique?
+# should we check for duplicates, and how should we handle them?
+
+#################################### END ###################################
 
 @client.event
 async def on_message(message):
@@ -278,10 +306,22 @@ async def on_message(message):
             msg = 'There was a problem looking up one of the characters. Check your spelling and try again.'
         finally:
             await message.channel.send(msg)
+            
+    # scrape a thread and return a DataFrame (will eventually dump into database)
+    if message.content.startswith('!scrape '):
+        args = message.content.split()
+        await message.channel.send('Attempting to scrape thread. Please stand by!')
+        try:
+            post_list = pd.DataFrame(data = scrape_page(args[1], {'Thread': [], 'Author': [], 'Date': [], 'Post': []}))            
+            msg = str(len(post_list.index)//30 + 1) + ' pages and ' + str(len(post_list.index)) + ' posts scraped.'
+        except:
+            msg = 'Hm, something\'s wrong. The site may be down, or I may not have access to that thread. :-('
+        finally:
+            await message.channel.send(msg)
 
     # list commands when a user asks for help
     if message.content.startswith('!help'):
-        cmd_list = ['!hello', '!say (text)', '!lookup (name) (attribute)', '!findall (attribute) (content)', '!count (attribute)', '!total', '!bio (name)', '!agecalc (name) (year)', '!yearcalc (name) (age)', '!agegap (name1) (name2)', '!agewhen (name1) when (name2) (age)', '!related (name1) (name2)']
+        cmd_list = ['!hello', '!say (text)', '!lookup (name) (attribute)', '!findall (attribute) (content)', '!count (attribute)', '!total', '!bio (name)', '!agecalc (name) (year)', '!yearcalc (name) (age)', '!agegap (name1) (name2)', '!agewhen (name1) when (name2) (age)', '!related (name1) (name2)', '!scrape (thread url)']
         await message.channel.send('These are the commands I can process:\n`' + str("`".join("{}`\n".format(v) for v in cmd_list)))
 
 
