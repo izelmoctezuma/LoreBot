@@ -1,0 +1,6 @@
+# ignore project files
+.spyproject/*
+
+# ignore credentials
+api_keys.json
+bot_token.py

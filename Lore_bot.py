@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Spyder Editor
 
-This is a temporary script file.
+Lore Checker Discord Bot
+created by Izel Moctezuma
+
 """
 
 import discord
@@ -11,16 +12,14 @@ import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
 import requests
 from bs4 import BeautifulSoup
+from bot_token import BOT_TOKEN
 
-
-BOT_TOKEN = "NTkyMTkyNDU5NTc2OTY3MTY4.XQ7xYg.LM4irLYwS6oNdLLeyhgIx6Zyw74"
-
-client = discord.Client()   
+client = discord.Client()
 
 def get_db():
     # Google Sheet access
-    scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-    google_key = '/Users/paolamoctezuma/PythonDev/DMBot/api-keys.json'
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    google_key = 'api_keys.json'
     creds = ServiceAccountCredentials.from_json_keyfile_name(google_key, scope)
     client = gspread.authorize(creds)
     sheet = client.open('DMBot Database')
@@ -33,7 +32,7 @@ def get_db():
 def get_attribute(name, attribute, data):
     data.columns = data.columns.str.lower()
     # mask out the row we need
-    mask = data['name'].str.lower()==name.lower()
+    mask = data['name'].str.lower() == name.lower()
     # return the requested attribute from the masked row
     att = str(data[mask][attribute.lower()].values[0])
     return att
@@ -41,7 +40,7 @@ def get_attribute(name, attribute, data):
 def get_names(attribute, content, data):
     data.columns = data.columns.str.lower()
     # mask out the rows we need
-    #(Parents requires searching for a substring and not a perfect match)
+    # (Parents requires searching for a substring and not a perfect match)
     if attribute.lower() == 'parents':
         mask = data[attribute.lower()].str.contains(content.capitalize())
     else:
@@ -109,11 +108,11 @@ def get_family(name1, data):
     for i in parents:
         if i != '':
             siblings += get_names('Parents', i, data)
-    #remove duplicates from siblings list
+    # remove duplicates from siblings list
     siblings = list(set(siblings))
     spouses = get_attribute(name1, 'Spouse', data).split(', ')
     children = get_names('Parents', name1, data)
-    #clear any empty strings
+    # clear any empty strings
     parents = [x for x in parents if x]
     spouses = [x for x in spouses if x]
     return parents + siblings + spouses + children
@@ -129,7 +128,7 @@ def are_related(name1, name2, data):
     checked = []
     related = False
     while len(unchecked) != 0:
-        if check_family(unchecked[0], name2, data) == True:
+        if check_family(unchecked[0], name2, data) is True:
             related = True
             break
         else:
@@ -138,10 +137,11 @@ def are_related(name1, name2, data):
                 if n not in checked:
                     unchecked.append(n)
             unchecked.pop(0)
-            #clear unchecked of any empty strings and remove duplicates
+            # clear unchecked of any empty strings and remove duplicates
             unchecked = [x for x in unchecked if x]
             unchecked = list(set(unchecked))
     return(related)
+
 
 unchecked = []
 checked = []
@@ -155,7 +155,7 @@ def check_relation(name1, name2, data):
             unchecked.append(n)
     if name1 in unchecked:
         unchecked.remove(name1)
-    #clear unchecked of any empty strings and remove duplicates
+    # clear unchecked of any empty strings and remove duplicates
     unchecked = [x for x in unchecked if x]
     unchecked = list(set(unchecked))
     if check_family(name1, name2, data):
@@ -167,13 +167,14 @@ def check_relation(name1, name2, data):
     else:
         check_relation(unchecked[0], name2, data)
 
-#def factorial(n):
+# def factorial(n):
 #    if n == 0:
 #        return 1
 #    else:
 #        return n * factorial(n-1)
-        
+
 ############################## THREAD SCRAPER ##############################
+
 
 def scrape_page(url, posts):
     # get webpage and parse it
@@ -181,12 +182,12 @@ def scrape_page(url, posts):
     soup = BeautifulSoup(page.text, 'html.parser')
     # scrape thread title and posts on page
     for msg in list(soup.find_all('div', class_='message')):
-        posts.update(Thread = posts.get('Thread') + [str(soup.find('h1').string)])
-        posts.update(Post = posts.get('Post') + [str(msg)[21:-6]])
+        posts.update(Thread=posts.get('Thread') + [str(soup.find('h1').string)])
+        posts.update(Post=posts.get('Post') + [str(msg)[21:-6]])
     # extract author names and timestamps from <h3> tags
     for info in list(soup.find_all('h3')):
-        posts.update(Author = posts.get('Author') + [str(info)[38:str(info).find('<abbr') - 4]])
-        posts.update(Date = posts.get('Date') + [str(info.find('abbr')['title'])])
+        posts.update(Author=posts.get('Author') + [str(info)[38:str(info).find('<abbr') - 4]])
+        posts.update(Date=posts.get('Date') + [str(info.find('abbr')['title'])])
     # scrape next page if there is one
     if soup.find('li', class_='next').a.has_attr('href'):
         nextpage = 'http://dark-myths.proboards.com' + soup.find('li', class_='next').a['href']
@@ -195,36 +196,38 @@ def scrape_page(url, posts):
     else:
         # print(str(len(posts.get('Post'))) + ' posts found. End of thread.')
         return(posts)
-        
+
 # consideration: are thread titles unique?
 # should we check for duplicates, and how should we handle them?
 
 #################################### END ###################################
+
 
 @client.event
 async def on_message(message):
     # we do not want the bot to reply to itself
     if message.author == client.user:
         return
-    
+
     # say hi
     if message.content.startswith('!hello'):
         msg = 'Hello, {0.author.mention}!'.format(message)
         await message.channel.send(msg)
-        
+
     # copy what the user says
     if message.content.startswith('!say '):
         arg_pos = message.content.find(' ')
         msg = 'Okay, I\'m saying ' + message.content[arg_pos + 1:]
         await message.channel.send(msg)
-        
+
     # look up an attribute value in a specific row on the Google sheet
     if message.content.startswith('!lookup '):
         args = message.content.split()
         try:
             msg = args[1].capitalize() + '\'s ' + args[2] + ' is: ' + get_attribute(args[1], args[2], get_db())
         except:
-            msg = 'That lookup is invalid, try again. Available attributes are:\n`' + str("`".join("{}` ".format(v) for v in get_db().columns.values.tolist()))
+            msg = ('That lookup is invalid, try again. Available attributes are:\n`' +
+                   str("`".join("{}` ".format(v) for v in get_db().columns.values.tolist())))
         finally:
             await message.channel.send(msg)
 
@@ -275,25 +278,28 @@ async def on_message(message):
     if message.content.startswith('!agewhen '):
         args = message.content.split()
         try:
-            msg = args[1].capitalize() + ' would be ' + str(get_age_when(args[1], args[3], args[4], get_db())) + ' when ' + args[3].capitalize() + ' is ' + args[4] + '.'
+            msg = args[1].capitalize() + ' would be ' + str(get_age_when(args[1], args[3], args[4], get_db())) + ' when ' + \
+                  args[3].capitalize() + ' is ' + args[4] + '.'
         except:
             msg = 'There was a problem looking up one of the characters, or that character doesn\'t have a valid birth year.'
         finally:
             await message.channel.send(msg)
-    
+
     # look up all names with a specified common attribute
     if message.content.startswith('!findall '):
         args = message.content.split()
         try:
             if len(get_names(args[1], args[2], get_db())) != 0:
-                msg = 'Here are all characters with a ' + args[1].capitalize() + ' matching ' + args[2] + ':\n' + str("".join("{}\n".format(v) for v in get_names(args[1], args[2], get_db())))
+                msg = ('Here are all characters with a ' + args[1].capitalize() + ' matching ' + args[2] +
+                       ':\n' + str("".join("{}\n".format(v) for v in get_names(args[1], args[2], get_db()))))
             else:
                 msg = 'There are no characters with a ' + args[1].capitalize() + ' matching ' + args[2] + '.'
         except:
-            msg = 'That attribute is invalid. Available attributes are:\n`' + str("`".join("{}` ".format(v) for v in get_db().columns.values.tolist()))
+            msg = ('That attribute is invalid. Available attributes are:\n`' +
+                   str("`".join("{}` ".format(v) for v in get_db().columns.values.tolist())))
         finally:
             await message.channel.send(msg)
-    
+
     # check if two given characters are related
     if message.content.startswith('!related'):
         args = message.content.split()
@@ -306,23 +312,27 @@ async def on_message(message):
             msg = 'There was a problem looking up one of the characters. Check your spelling and try again.'
         finally:
             await message.channel.send(msg)
-            
+
     # scrape a thread and return a DataFrame (will eventually dump into database)
     if message.content.startswith('!scrape '):
         args = message.content.split()
         await message.channel.send('Attempting to scrape thread. Please stand by!')
         try:
-            post_list = pd.DataFrame(data = scrape_page(args[1], {'Thread': [], 'Author': [], 'Date': [], 'Post': []}))            
+            post_list = pd.DataFrame(data=scrape_page(args[1], {'Thread': [], 'Author': [], 'Date': [], 'Post': []}))
             msg = str(len(post_list.index)//30 + 1) + ' pages and ' + str(len(post_list.index)) + ' posts scraped.'
-        except:
-            msg = 'Hm, something\'s wrong. The site may be down, or I may not have access to that thread. :-('
+        except Exception as err:
+            msg = 'Hm, something\'s wrong. The site may be down, or I may not have access to that thread. :-(\nError: ' + str(err)
         finally:
             await message.channel.send(msg)
 
     # list commands when a user asks for help
     if message.content.startswith('!help'):
-        cmd_list = ['!hello', '!say (text)', '!lookup (name) (attribute)', '!findall (attribute) (content)', '!count (attribute)', '!total', '!bio (name)', '!agecalc (name) (year)', '!yearcalc (name) (age)', '!agegap (name1) (name2)', '!agewhen (name1) when (name2) (age)', '!related (name1) (name2)', '!scrape (thread url)']
-        await message.channel.send('These are the commands I can process:\n`' + str("`".join("{}`\n".format(v) for v in cmd_list)))
+        cmd_list = ['!hello', '!say (text)', '!lookup (name) (attribute)', '!findall (attribute) (content)',
+                    '!count (attribute)', '!total', '!bio (name)', '!agecalc (name) (year)',
+                    '!yearcalc (name) (age)', '!agegap (name1) (name2)', '!agewhen (name1) when (name2) (age)',
+                    '!related (name1) (name2)', '!scrape (thread url)']
+        await message.channel.send('These are the commands I can process:\n`' +
+                                   str("`".join("{}`\n".format(v) for v in cmd_list)))
 
 
 @client.event
@@ -334,4 +344,3 @@ async def on_ready():
 
 # Start the BOT!
 client.run(BOT_TOKEN)
-
