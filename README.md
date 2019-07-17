@@ -31,6 +31,7 @@ python3 ./LoreBot.py
 ## Usage
 
 Once the bot has been set up, simply use the following commands in a Discord channel it has access to:
+
 | Command    | Arguments             | Usage  |
 | ---------- | --------------------- | ------ |
 | !hello     |  | Says hello! |
