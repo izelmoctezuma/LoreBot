@@ -22,7 +22,7 @@ def get_db():
     google_key = 'api_keys.json'
     creds = ServiceAccountCredentials.from_json_keyfile_name(google_key, scope)
     client = gspread.authorize(creds)
-    sheet = client.open('DMBot Database')
+    sheet = client.open('LoreBot Database')
     wsheet = sheet.worksheet('Characters')
     # extract all the values - this returns a dictionary
     sheet1_data = wsheet.get_all_records()
